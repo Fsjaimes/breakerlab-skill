@@ -15,7 +15,7 @@ Todo queda en `.breaklab/<fecha>-<slug>/` dentro del proyecto revisado:
 | Archivo | Qué incluye |
 |---|---|
 | `criterios.md` | Las reglas verificables que se usaron y las ambigüedades detectadas |
-| `informe.md` | Veredicto, fallos confirmados por gravedad, preguntas para ti, tests reforzados y métricas, rechazados, lo que no se cubrió y reglas candidatas para tu `CLAUDE.md` |
+| `informe.md` | Veredicto, fallos confirmados por gravedad (cada uno explicado en lenguaje sencillo y en detalle técnico, con el comando para reproducirlo listo para copiar), preguntas para ti, tests reforzados y métricas, rechazados, lo que no se cubrió y reglas candidatas para tu `CLAUDE.md` |
 | `hallazgos.json` | Los mismos hallazgos en formato estructurado, para automatizar después |
 | Tests del grupo `breaklab` | Un test por fallo confirmado, que falla hoy por esa razón exacta |
 
