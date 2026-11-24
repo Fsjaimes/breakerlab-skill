@@ -67,6 +67,10 @@ Lanza un subagente por técnica con la herramienta Agent (tipo general-purpose),
   gravedad: alta | media | baja
   confianza: 0-100
   tipo: fallo | ambiguedad | test-debil
+  test: ruta del test que lo demuestra (si falta, lo completa el juez)
+  comando_test: comando para correr solo ese test
+  depende_de: id de la ambigüedad en criterios.md (A1, A2…) o vacío
+  estado: pendiente | esperando-decision | corregido
 ```
 
 ### Instrucciones por técnica
@@ -90,8 +94,8 @@ Lanza un subagente por técnica con la herramienta Agent (tipo general-purpose),
 Lanza un subagente juez nuevo. No juzgues tú: esta sesión pudo haber escrito el código. El juez recibe los hallazgos, `criterios.md` y las rutas, y para cada hallazgo:
 
 1. Lo reproduce. Si no se reproduce, lo rechaza con el motivo.
-2. Si se reproduce y viola un criterio, escribe (o valida el que dejó el revisor) un test del grupo `breaklab` que falle hoy por esa razón exacta, lo ejecuta y adjunta la salida. Solo entonces queda **confirmado**.
-3. Si depende de algo no definido, lo marca como ambigüedad.
+2. Si se reproduce y viola un criterio, escribe (o valida el que dejó el revisor) un test del grupo `breaklab` que falle hoy por esa razón exacta, lo ejecuta y adjunta la salida. Solo entonces queda **confirmado**: completa `test` y `comando_test` y lo deja en `estado: pendiente`.
+3. Si depende de algo no definido, lo marca como ambigüedad: reutiliza su id `A<n>` de `criterios.md` o la agrega ahí con uno nuevo. Si además se reproduce un fallo que depende de esa decisión, lo confirma igual pero con `depende_de: A<n>` y `estado: esperando-decision`.
 4. Funde duplicados entre técnicas y anota cuáles lo encontraron.
 5. Para `test-debil`, confirma que el test nuevo pasa con el código actual.
 6. Revisa la `explicacion_simple` de cada hallazgo confirmado: que describa el mismo problema que el test demuestra y cumpla las reglas de "Explicación sencilla". Si no las cumple, la reescribe.
@@ -100,15 +104,18 @@ El juez no arregla código.
 
 ## Fase 5. Entregar
 
-Escribe `.breaklab/<fecha>-<slug>/informe.md` con la plantilla de "Formato de los archivos" y `hallazgos.json` (los mismos campos, para automatizar después). El informe lleva:
+Escribe `.breaklab/<fecha>-<slug>/informe.md` con la plantilla de "Formato de los archivos" y `hallazgos.json` (los mismos campos de cada hallazgo, para automatizar después; estructura en "Formato de los archivos"). El informe lleva:
 
 1. **Veredicto** en dos líneas y contadores: fallos confirmados por gravedad, tests reforzados, rechazados, ambigüedades.
 2. **Fallos confirmados**, de mayor a menor gravedad. Cada uno con dos versiones del problema: **En pocas palabras** (sin tecnicismos, para cualquier persona) y **Detalle técnico** (archivo:línea, qué falla y por qué). Después, cómo reproducirlo, el test que lo demuestra y la(s) técnica(s) que lo encontraron.
-3. **Preguntas para ti**: cada ambigüedad como una decisión concreta con sus opciones, explicada también sin tecnicismos.
+3. **Preguntas para ti**: cada ambigüedad como una decisión concreta con sus opciones, explicada también sin tecnicismos, con el mismo id `A<n>` que en `criterios.md` y los fallos que esperan esa respuesta.
 4. **Tests reforzados y métricas** por técnica: puntaje de mutación antes y después, propiedades probadas, entradas generadas, semillas.
 5. **Rechazados**, con el motivo en una línea.
 6. **Lo que no se cubrió** y los límites de las técnicas usadas.
 7. **Reglas candidatas** para CLAUDE.md o REVIEW.md cuando un patrón aparezca dos o más veces. Proponlas, no las apliques.
+8. **Para corregir**: las reglas que debe seguir quien arregle los fallos (sección de la plantilla), para que cualquier agente pueda hacerlo solo con la carpeta de la revisión.
+
+**Registrar las decisiones.** Cuando el usuario responda una pregunta (en el chat o más tarde), escribe su respuesta en el campo **Decisión** de esa ambigüedad en `criterios.md`, con la fecha, y pasa los hallazgos con ese `depende_de` de `esperando-decision` a `pendiente` en `hallazgos.json`. Si la decisión hace que un hallazgo deje de ser un fallo, márcalo como rechazado con ese motivo. No cambies nada más del informe.
 
 En el chat responde con el veredicto, los fallos de gravedad alta, las preguntas pendientes y la ruta del informe. Recuerda que los tests del grupo `breaklab` que demuestran fallos fallan a propósito: se excluyen de la suite normal (p. ej. `--exclude-group=breaklab`) hasta corregir el código, y el siguiente paso es arreglarlo hasta que pasen.
 
@@ -118,7 +125,7 @@ Reglas para todo Markdown que genere Breaklab:
 
 - **Sin emojis**, en títulos ni en el texto.
 - Un `#` por archivo con el título; debajo, un párrafo en cursiva que diga de qué trata el documento.
-- Secciones con `##`, elementos numerados con `###` (`F1`, `P1`, `R1`…) y subpartes con `####`.
+- Secciones con `##`, elementos numerados con `###` (`F1` fallos, `A1` ambigüedades, `R1` reglas…) y subpartes con `####`.
 - Datos clave en listas con la etiqueta en negrita: `- **Gravedad:** alta`.
 - Rutas, funciones y valores en `código en línea`.
 
@@ -174,7 +181,9 @@ _<La regla en lenguaje sencillo.>_
 - **Se cumple si:** <condición verificable>
 - **Origen:** <`ruta:línea`, usuario o archivo de criterios>
 
-## Ambigüedades
+## Ambigüedades y decisiones
+
+_Lo que ni el código ni el usuario habían definido. Cuando el usuario responde, su respuesta queda en **Decisión** y pasa a ser una regla más._
 
 ### A1. <la pregunta>
 
@@ -183,6 +192,7 @@ _<Por qué importa, en lenguaje sencillo.>_
 - **Opción A:** <...>
 - **Opción B:** <...>
 - **Bloquea la revisión:** sí | no
+- **Decisión:** pendiente | <la opción elegida, en una frase> (AAAA-MM-DD)
 ~~~~
 
 ### Plantilla de `informe.md`
@@ -238,12 +248,15 @@ Resultado:
 
 ## Preguntas para ti
 
-### P1. <la decisión, en una frase>
+### A1. <la decisión, en una frase>
 
 _<Contexto sin tecnicismos.>_
 
 - **Opción A:** <qué pasa si eliges esta>
 - **Opción B:** <qué pasa si eliges esta>
+- **Fallos que esperan esta respuesta:** <F2, F4 o "ninguno">
+
+Responde en el chat (por ejemplo, "A1: opción B") y tu decisión quedará anotada en `criterios.md`.
 
 ## Tests reforzados y métricas
 
@@ -265,13 +278,60 @@ _<Contexto sin tecnicismos.>_
 
 - <regla propuesta para CLAUDE.md o REVIEW.md>
 
-## Siguiente paso
+## Para corregir
 
-_Los tests del grupo `breaklab` que demuestran fallos fallan a propósito. Exclúyelos de la suite normal hasta corregir el código:_
+_Instrucciones para quien arregle estos fallos, sea una persona o un agente. Todo lo necesario está en esta carpeta: este informe, `criterios.md` y `hallazgos.json`._
+
+Mientras tanto, los tests del grupo `breaklab` que demuestran fallos fallan a propósito. Para correr la suite normal sin ellos:
 
 ```bash
 <comando de la suite excluyendo el grupo breaklab>
 ```
+
+Reglas:
+
+1. **Corrige el código, no los tests.** No edites, debilites ni borres los tests del grupo `breaklab` para que pasen. Si un test parece estar mal, detente y pregúntalo.
+2. **Respeta los criterios.** Las reglas y las decisiones de `criterios.md` mandan. No corrijas los hallazgos con `estado: esperando-decision` hasta que su ambigüedad tenga una decisión.
+3. **De mayor a menor gravedad**, un hallazgo a la vez. Después de cada arreglo, corre su `comando_test` y comprueba que pasa.
+4. **Cierra cada hallazgo.** Cuando su test pasa, cámbialo a `estado: corregido` en `hallazgos.json` y quítale la marca de grupo `breaklab` al test, para que quede en la suite normal como prueba de regresión.
+5. **Al terminar, corre la suite completa** y comprueba que no se rompió nada más.
 ~~~~
 
-Omite las secciones que queden vacías, salvo "Fallos confirmados" (si no hay, escribe "No se confirmó ningún fallo.") y "Lo que no se cubrió".
+Omite las secciones que queden vacías, salvo "Fallos confirmados" (si no hay, escribe "No se confirmó ningún fallo."), "Lo que no se cubrió" y "Para corregir".
+
+### Estructura de `hallazgos.json`
+
+~~~~json
+{
+  "revision": {
+    "tema": "<tema>",
+    "fecha": "AAAA-MM-DD",
+    "alcance": ["ruta/del/código"],
+    "tecnicas": ["<técnica>"],
+    "comando_suite": "<comando de la suite excluyendo el grupo breaklab>"
+  },
+  "hallazgos": [
+    {
+      "id": "F1",
+      "origen": ["<tecnica>-<n>"],
+      "archivo": "ruta:línea",
+      "descripcion": "<una frase técnica>",
+      "explicacion_simple": "<dos o tres frases sin tecnicismos>",
+      "reproduccion": "<comando o entrada exacta>",
+      "evidencia": "<salida relevante, recortada>",
+      "gravedad": "alta",
+      "confianza": 90,
+      "tipo": "fallo",
+      "test": "ruta/del/test",
+      "comando_test": "<comando para correr solo ese test>",
+      "depende_de": null,
+      "estado": "pendiente"
+    }
+  ],
+  "rechazados": [
+    { "origen": "<tecnica>-<n>", "motivo": "<una línea>" }
+  ]
+}
+~~~~
+
+En el JSON, los hallazgos confirmados usan el mismo id que en el informe (`F1`, `F2`…) y `origen` guarda los ids de las técnicas que los encontraron.
