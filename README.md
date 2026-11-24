@@ -112,6 +112,20 @@ pytest -m "not breaklab"                       # pytest
 
 Cuando el código esté arreglado, esos tests pasan y quedan como pruebas de regresión.
 
+## Corregir los fallos
+
+La carpeta de cada revisión tiene todo lo que necesita quien vaya a corregir, sea una persona o un agente. No hace falta `AGENTS.md` ni ningún otro archivo:
+
+- `hallazgos.json` da, por cada fallo, el test que lo demuestra, el comando para correrlo y su estado (`pendiente`, `esperando-decision` o `corregido`).
+- `criterios.md` guarda tus respuestas a las preguntas del informe, en el campo **Decisión** de cada ambigüedad.
+- La sección **Para corregir** de `informe.md` fija las reglas: corregir el código y no los tests, no tocar lo que espera una decisión, ir de mayor a menor gravedad y correr la suite completa al final.
+
+Basta con pedirlo:
+
+```
+corrige los fallos de .breaklab/2026-11-24-registro-usuarios/
+```
+
 ## Estructura
 
 ```
