@@ -17,7 +17,7 @@ Entrada: `$ARGUMENTS` (archivos, endpoint o módulo a revisar y, opcionalmente, 
 2. **Stack:** detecta herramientas en composer.json (Pest/PHPUnit, Infection, pest-plugin-mutate), package.json (Vitest/Jest, fast-check, Stryker) o pyproject (pytest, Hypothesis, mutmut). Anota lo que falta; no instales nada sin preguntar.
 3. **Línea base:** corre la suite actual del alcance. Si ya falla, detente y avísalo: no se verifica sobre una base rota.
 4. **Criterios de aceptación:** busca un archivo de criterios (p. ej. `docs/criterios/<tema>.md`) o pídelos al usuario. Conviértelos en reglas verificables y muéstraselas. Marca como **ambigüedad** todo lo que ni el código ni el usuario resuelven (¿18 incluido?, ¿decimales?, ¿máximo?). No las resuelvas tú: pregúntalas ahora si bloquean, si no van al informe.
-   Guarda los criterios en `.breaklab/<fecha>-<slug>/criterios.md`.
+   Guarda los criterios en `.breaklab/<fecha>-<slug>/criterios.md` con la plantilla de "Formato de los archivos".
 
 ## Fase 2. Elegir técnicas
 
@@ -60,7 +60,8 @@ Lanza un subagente por técnica con la herramienta Agent (tipo general-purpose),
 ```
 - id: <tecnica>-<n>
   archivo: ruta:linea
-  descripcion: una frase
+  descripcion: una frase técnica
+  explicacion_simple: dos o tres frases sin tecnicismos (ver "Explicación sencilla")
   reproduccion: comando o entrada exacta
   evidencia: salida relevante (recortada)
   gravedad: alta | media | baja
@@ -93,19 +94,184 @@ Lanza un subagente juez nuevo. No juzgues tú: esta sesión pudo haber escrito e
 3. Si depende de algo no definido, lo marca como ambigüedad.
 4. Funde duplicados entre técnicas y anota cuáles lo encontraron.
 5. Para `test-debil`, confirma que el test nuevo pasa con el código actual.
+6. Revisa la `explicacion_simple` de cada hallazgo confirmado: que describa el mismo problema que el test demuestra y cumpla las reglas de "Explicación sencilla". Si no las cumple, la reescribe.
 
 El juez no arregla código.
 
 ## Fase 5. Entregar
 
-Escribe `.breaklab/<fecha>-<slug>/informe.md` y `hallazgos.json` (los mismos campos, para automatizar después). El informe lleva:
+Escribe `.breaklab/<fecha>-<slug>/informe.md` con la plantilla de "Formato de los archivos" y `hallazgos.json` (los mismos campos, para automatizar después). El informe lleva:
 
 1. **Veredicto** en dos líneas y contadores: fallos confirmados por gravedad, tests reforzados, rechazados, ambigüedades.
-2. **Fallos confirmados**, de mayor a menor gravedad: archivo:línea, qué falla, cómo reproducirlo, ruta del test que lo demuestra y técnica(s) que lo encontraron.
-3. **Preguntas para ti**: cada ambigüedad como una decisión concreta con sus opciones.
+2. **Fallos confirmados**, de mayor a menor gravedad. Cada uno con dos versiones del problema: **En pocas palabras** (sin tecnicismos, para cualquier persona) y **Detalle técnico** (archivo:línea, qué falla y por qué). Después, cómo reproducirlo, el test que lo demuestra y la(s) técnica(s) que lo encontraron.
+3. **Preguntas para ti**: cada ambigüedad como una decisión concreta con sus opciones, explicada también sin tecnicismos.
 4. **Tests reforzados y métricas** por técnica: puntaje de mutación antes y después, propiedades probadas, entradas generadas, semillas.
 5. **Rechazados**, con el motivo en una línea.
 6. **Lo que no se cubrió** y los límites de las técnicas usadas.
 7. **Reglas candidatas** para CLAUDE.md o REVIEW.md cuando un patrón aparezca dos o más veces. Proponlas, no las apliques.
 
 En el chat responde con el veredicto, los fallos de gravedad alta, las preguntas pendientes y la ruta del informe. Recuerda que los tests del grupo `breaklab` que demuestran fallos fallan a propósito: se excluyen de la suite normal (p. ej. `--exclude-group=breaklab`) hasta corregir el código, y el siguiente paso es arreglarlo hasta que pasen.
+
+## Formato de los archivos
+
+Reglas para todo Markdown que genere Breaklab:
+
+- **Sin emojis**, en títulos ni en el texto.
+- Un `#` por archivo con el título; debajo, un párrafo en cursiva que diga de qué trata el documento.
+- Secciones con `##`, elementos numerados con `###` (`F1`, `P1`, `R1`…) y subpartes con `####`.
+- Datos clave en listas con la etiqueta en negrita: `- **Gravedad:** alta`.
+- Rutas, funciones y valores en `código en línea`.
+
+### Comandos listos para copiar
+
+Markdown no permite crear botones, pero los visores que más se usan (GitHub, GitLab, Obsidian y la mayoría de editores) ponen un botón de copiar en cada bloque de código. Para que ese botón copie justo lo necesario:
+
+- Cada comando va solo en su propio bloque ```` ```bash ````, sin `$` delante y sin salida mezclada.
+- Si hacen falta dos comandos seguidos, van en dos bloques, uno debajo del otro.
+- Una entrada que no es un comando (un JSON, un texto para pegar en un formulario) va en un bloque con su lenguaje (```` ```json ````, ```` ```text ````).
+- La salida de un comando va en un bloque ```` ```text ```` aparte, nunca en el mismo bloque que el comando.
+- Los comandos se escriben para ejecutarse desde la raíz del proyecto, sin rutas absolutas de esta máquina.
+
+### Explicación sencilla
+
+La versión "En pocas palabras" de cada fallo y de cada pregunta la tiene que entender alguien que no programa:
+
+- Dos o tres frases. Cuenta qué le pasa a quien usa el sistema o al negocio, no qué pasa dentro del código.
+- Sin términos técnicos: nada de excepción, null, endpoint, 500, 422, validación, mutante, request, etc. Si uno es inevitable, explícalo en la misma frase.
+- Con un ejemplo concreto cuando ayude: "si alguien escribe su edad como 18.5…".
+- Dice por qué importa: qué se pierde, qué se rompe o a quién afecta.
+
+Ejemplo:
+
+- **Técnico:** `RegisterRequest::rules()` acepta `age` como `numeric` sin `integer`; `18.5` pasa la validación y el cast a `int` en `UserService:42` lanza `TypeError` (500).
+- **En pocas palabras:** Si alguien escribe su edad con decimales, como 18.5, el registro se cae y la persona ve una página de error en lugar de un mensaje que le diga qué corregir. No puede registrarse y no sabe por qué.
+
+### Plantilla de `criterios.md`
+
+~~~~markdown
+# Criterios: <tema>
+
+_Reglas que debe cumplir <qué código> y que Breaklab usó para buscar fallos. Salen de <origen: el código, docs/criterios/..., lo que dijo el usuario>._
+
+## Alcance
+
+- **Código:** `ruta/del/archivo`
+- **Tests existentes:** `ruta/de/los/tests`
+- **Fecha:** AAAA-MM-DD
+
+Para correr los tests del alcance:
+
+```bash
+<comando>
+```
+
+## Reglas
+
+### R1. <nombre corto de la regla>
+
+_<La regla en lenguaje sencillo.>_
+
+- **Se cumple si:** <condición verificable>
+- **Origen:** <`ruta:línea`, usuario o archivo de criterios>
+
+## Ambigüedades
+
+### A1. <la pregunta>
+
+_<Por qué importa, en lenguaje sencillo.>_
+
+- **Opción A:** <...>
+- **Opción B:** <...>
+- **Bloquea la revisión:** sí | no
+~~~~
+
+### Plantilla de `informe.md`
+
+~~~~markdown
+# Informe Breaklab: <tema>
+
+_<Veredicto en dos líneas: qué se revisó y qué se encontró.>_
+
+| Fallos altos | Fallos medios | Fallos bajos | Tests reforzados | Rechazados | Preguntas |
+|---|---|---|---|---|---|
+| 0 | 0 | 0 | 0 | 0 | 0 |
+
+- **Alcance:** `ruta/del/código`
+- **Técnicas:** <lista>
+- **Fecha:** AAAA-MM-DD
+
+## Fallos confirmados
+
+### F1. <título corto, en lenguaje sencillo>
+
+- **Gravedad:** alta | media | baja
+- **Archivo:** `ruta:línea`
+- **Encontrado por:** <técnica(s)>
+
+#### En pocas palabras
+
+<Dos o tres frases sin tecnicismos.>
+
+#### Detalle técnico
+
+<Qué falla, dónde y por qué.>
+
+#### Cómo reproducirlo
+
+```bash
+<comando exacto>
+```
+
+Resultado:
+
+```text
+<salida relevante, recortada>
+```
+
+#### Test que lo demuestra
+
+`ruta/del/test`
+
+```bash
+<comando para correr solo ese test>
+```
+
+## Preguntas para ti
+
+### P1. <la decisión, en una frase>
+
+_<Contexto sin tecnicismos.>_
+
+- **Opción A:** <qué pasa si eliges esta>
+- **Opción B:** <qué pasa si eliges esta>
+
+## Tests reforzados y métricas
+
+### <Técnica>
+
+- **<métrica>:** <valor>
+
+## Rechazados
+
+| Hallazgo | Motivo |
+|---|---|
+| <id> | <una línea> |
+
+## Lo que no se cubrió
+
+- <límite o parte no revisada>
+
+## Reglas candidatas
+
+- <regla propuesta para CLAUDE.md o REVIEW.md>
+
+## Siguiente paso
+
+_Los tests del grupo `breaklab` que demuestran fallos fallan a propósito. Exclúyelos de la suite normal hasta corregir el código:_
+
+```bash
+<comando de la suite excluyendo el grupo breaklab>
+```
+~~~~
+
+Omite las secciones que queden vacías, salvo "Fallos confirmados" (si no hay, escribe "No se confirmó ningún fallo.") y "Lo que no se cubrió".
